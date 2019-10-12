@@ -1,0 +1,19 @@
+[Unit]
+Description=Sonos Controller for kids
+After=default.target
+
+[Service]
+ExecStart=/usr/bin/python3 -u /usr/local/bin/sonosctl.py
+PermissionsStartOnly=True
+User=pi
+RuntimeDirectory=sonosctl
+RuntimeDirectoryMode=0775
+PIDFile=/run/sonosctl/sonosctl_pid
+LogsDirectory=sonosctl
+WorkingDirectory=/usr/local/bin
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+
+[Install]
+WantedBy=default.target
