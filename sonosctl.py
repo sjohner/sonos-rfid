@@ -14,6 +14,7 @@ LOG_FILENAME = "/var/log/sonosctl/controller.log"
 LOG_LEVEL = logging.DEBUG
 SPEAKER_NAME = "Playroom"
 READER = SimpleMFRC522()
+OLDCARDID = ""
 
 # Define and parse command line arguments
 parser = argparse.ArgumentParser(description="RFID Sonos Controller")
@@ -58,36 +59,46 @@ sys.stdout = MyLogger(logger, logging.INFO)
 sys.stderr = MyLogger(logger, logging.ERROR)
 
 try:
+	# Set active speaker
 	logger.info("Successfully initialized Sonos controller for kids")
 	speaker = soco.discovery.by_name(SPEAKER_NAME)
-	logger.info("Set active speaker to: " + speaker.player_name + " (" + speaker.ip_address + ")")
+	logger.info("Active speaker set to: " + speaker.player_name + " (" + speaker.ip_address + ")")
 
 	while True:
 		# Read card
 		id, text = READER.read()
-		logger.debug("Card ID: " + str(id))
-		logger.debug("Text: " + text)
+		logger.debug("Found card with id: " + str(id))
+		# Remove any spaces from card text
 		text = text.strip()
-		length = len(text)
-		logger.debug("Card data: " + text + " (" + str(length) + ")")
-		
-		# Consider https://stackoverflow.com/questions/52343386/python-rfid-read-in-a-loop when card 
-		# is not moved away from reader
-		if text == "STOP":
-			logger.info("Found STOP")
-			speaker.stop()
-		else:
-			# Get playlist by item_id
-			logger.info("Getting playlist with item_id: " + text)
-			playlist = speaker.get_sonos_playlist_by_attr('item_id', text)
-			logger.info("Found corresponding playlist: " + playlist.title)
-			logger.info("Clearing queue for " + speaker.player_name)
-			speaker.clear_queue()
-			logger.info("Adding playlist to queue")
-			speaker.add_to_queue(playlist)
-			logger.info("Starting playlist")
-			speaker.play()
-#		logger.debug("Sleep")
-#		time.sleep(2)
+		logger.debug("Card text: " + text)
+
+		# Check if a new card was placed on the reader
+		if id != OLDCARDID:
+			OLDCARDID = id
+
+			# Stop playlist if STOP card found
+			if text == "STOP":
+				logger.info("Found STOP")
+				speaker.stop()
+
+			# Else get playlist by given item_id and play
+			else:
+				# Get Sonos playlist by item_id
+				logger.info("Getting playlist with item_id: " + text)
+				playlist = speaker.get_sonos_playlist_by_attr('item_id', text)
+				logger.info("Found corresponding playlist: " + playlist.title)
+				logger.info("Clearing queue for " + speaker.player_name)
+				# Clear speaker queue
+				speaker.clear_queue()
+				logger.info("Adding playlist to queue")
+				# Add Sonos playlist to speaker queue and play
+				speaker.add_to_queue(playlist)
+				logger.info("Starting playlist")
+				speaker.play()
+
+		# Do nothing if still the same card
+		else :
+			logger.debug("Still same card with id: " + str(id))
+			time.sleep(2)
 finally:
 	GPIO.cleanup()
